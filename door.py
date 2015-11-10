@@ -2,19 +2,25 @@
 from time import sleep
 import re
 import setup
-from setup import botlog
+from setup import botlog, reader
 
 import authenticate
 import door_hw
 
 
 botlog.info( '%s Starting.' % setup.botname)
+reader.initialize()
+
 
 while True :
 
-    # Get a line
+    sleep(.1)
+
+    # Get a card
     #
-    rfid_str = raw_input('input rfid? ')
+    rfid_str = reader.get_card()
+    if not rfid_str :
+        continue
 
     botlog.debug( '>>%s<<' % rfid_str)
 

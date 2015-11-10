@@ -1,6 +1,7 @@
 
 
 import logging
+from rfid import *
 
 
 botname = 'doorbot'
@@ -34,6 +35,10 @@ botlog.setLevel(logging.DEBUG)
 
 
 
+
+# define the rfid reader device type
+#
+reader = rfid_reader_hid()
 
 
 
