@@ -1,10 +1,12 @@
 
 import re
 import hashlib
+import setup
+from setup import botlog
 
 
+card_data_file = setup.card_data_file # 'databases/door.csv'
 
-card_data_file = 'databases/door.csv'
 
 
 ####
@@ -22,21 +24,28 @@ csv_line = re.compile(r'(?:^|,)(?=[^"]|(")?)"?((?(1)[^"]*|[^,"]*))"?(?=,|$)')
 def read_card_data(csv_filename) :
     "return a dictionary of (username,key,allowed) indexed by hashed rfid"
 
-    f = open(csv_filename)
-    lines = f.read().splitlines()
-    f.close()
+    try :
+        f = open(csv_filename)
+        lines = f.read().splitlines()
+        f.close()
+    except :
+        botlog.critical( "authenticate can't read CSV %s" % csv_filename)
+        return {}
     
     cd = {}
     for l in lines[1:] :
         try :
-            (hashedCard,username,allowed) = [x[1] for x in csv_line.findall(l)]
+            (username,value,key,allowed,hashedCard,lastAccessed) = lc = [x[1] for x in csv_line.findall(l)]
             # throw away value(?) and lastAccessed
             cd[hashedCard] = (username,allowed)
+
         except :
-            print 'CSV fail: %s' % l
+            botlog.error( 'authenticate CSV fail: %s' % l)
     return cd
 
+
 card_data = read_card_data(card_data_file)
+# check for empty tag dict?
 
 
 
@@ -54,7 +63,8 @@ def get_access(rfid) :
 
     
     rfid_hash = m.hexdigest()
-    print rfid_hash
+    botlog.debug( 'rfid_hash: %s' % rfid_hash)
+
 
     if rfid_hash not in card_data :
         return None

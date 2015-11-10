@@ -1,12 +1,14 @@
 
-
 from time import sleep
 import re
-
+import setup
+from setup import botlog
 
 import authenticate
 import door_hw
 
+
+botlog.info( '%s Starting.' % setup.botname)
 
 while True :
 
@@ -14,11 +16,7 @@ while True :
     #
     rfid_str = raw_input('input rfid? ')
 
-    print '>>%s<<' % rfid_str,
-
-    ##m = re.match('k:(\d+)',response)
-   ## if m:
-        ##rfid = int(m.groups()[0])
+    botlog.debug( '>>%s<<' % rfid_str)
 
     try :
         rfid = int(rfid_str)
@@ -31,7 +29,7 @@ while True :
             if int(allowed) == 0 :
                 raise  Exception
 
-            print 'Welcome, %s!' % username
+            botlog.info('%s allowed' % username)
 
             # open the door
             # 
@@ -40,14 +38,15 @@ while True :
         else :
             # access failed.  blink the red
             #
-            print 'ACCESS DENIED'
+            botlog.warning('%s DENIED' % username)
             door_hw.blink_red()           
 
     except :
         # bad input catcher, also includes bad cards
         #
-        print 'Bad input'
+        botlog.warning('bad card %s ' % rfid_str)
         door_hw.blink_red(4)
 
 
 # 0001258648
+

@@ -7,10 +7,11 @@ from time import sleep
 #
 GPIO.setmode(GPIO.BCM)
 
-RED_PIN = 16
-GREEN_PIN = None
-DOOR_PIN = 21
-BEEP_PIN = None
+RED_PIN = setup.RED_PIN #16
+GREEN_PIN = setup.GREEN_PIN #None
+DOOR_PIN = setup.DOOR_PIN #21
+BEEP_PIN = setup.BEEP_PIN #None
+
 
 
 pins = [RED_PIN, GREEN_PIN, DOOR_PIN, DOOR_PIN]
