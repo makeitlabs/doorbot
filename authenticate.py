@@ -49,7 +49,6 @@ card_data = read_card_data(card_data_file)
 
 
 
-
 def get_access(rfid) :
     "given an integer rfid card number, return None or a tuple of (username,allowed)"
 

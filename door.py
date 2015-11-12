@@ -29,10 +29,12 @@ while True :
 
         access = authenticate.get_access(rfid)
 
+
         if access :
             (username,allowed) = access
 
-            if int(allowed) == 0 :
+
+            if 'allowed' not in allowed :
                 raise  Exception
 
             botlog.info('%s allowed' % username)
@@ -52,6 +54,10 @@ while True :
         #
         botlog.warning('bad card %s ' % rfid_str)
         door_hw.blink_red(4)
+
+    sleep(3)
+    reader.flush()  # needed for serial reader that keeps sending stuff.
+    
 
 
 # 0001258648

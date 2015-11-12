@@ -38,7 +38,7 @@ botlog.setLevel(logging.DEBUG)
 
 # define the rfid reader device type
 #
-reader = rfid_reader_hid()
+reader = rfid_reader_serial()
 
 
 
@@ -52,6 +52,6 @@ card_data_file = 'databases/rfid/CardData.csv'
 #
 
 RED_PIN = 16
-GREEN_PIN = None
+GREEN_PIN = 12
 DOOR_PIN = 21
 BEEP_PIN = None
