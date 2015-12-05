@@ -11,10 +11,14 @@ import door_hw
 botlog.info( '%s Starting.' % setup.botname)
 reader.initialize()
 
-
+blinker = 0
 while True :
 
+    blinker += 1
+    if blinker%10 == 0 :
+        door_hw.green(False)
     sleep(.1)
+    door_hw.green(True)
 
     # Get a card
     #

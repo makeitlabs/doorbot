@@ -51,7 +51,9 @@ card_data_file = 'databases/rfid/CardData.csv'
 # door_hw.py
 #
 
-RED_PIN = 16
+# no red LED so double up the green one
+#
+RED_PIN = 12
 GREEN_PIN = 12
 DOOR_PIN = 21
 BEEP_PIN = None

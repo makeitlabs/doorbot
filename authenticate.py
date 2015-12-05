@@ -1,4 +1,4 @@
-
+import os
 import re
 import hashlib
 import setup
@@ -7,10 +7,14 @@ from setup import botlog
 
 card_data_file = setup.card_data_file # 'databases/door.csv'
 
+card_data = {}
 
 
 ####
 
+# used to re-read a new file
+#
+file_time = 0
 
 
 
@@ -35,22 +39,47 @@ def read_card_data(csv_filename) :
     cd = {}
     for l in lines[1:] :
         try :
-            (username,value,key,allowed,hashedCard,lastAccessed) = lc = [x[1] for x in csv_line.findall(l)]
+            (username,value,key,allowed,hashedCard,lastAccessed) = [x[1] for x in csv_line.findall(l)]
             # throw away value(?) and lastAccessed
             cd[hashedCard] = (username,allowed)
 
         except :
             botlog.error( 'authenticate CSV fail: %s' % l)
+
+    botlog.info( "authenticate read CSV %s %d entries" % (csv_filename, len(cd)))
     return cd
 
 
-card_data = read_card_data(card_data_file)
-# check for empty tag dict?
+def re_read_file(csv_filename=card_data_file) :
+    "check the file and reload data if needed"
 
+    global card_data
+    global file_time
+
+
+    try :
+        fd = os.open(csv_filename,os.O_RDONLY)
+        fi = os.fstat(fd)
+        os.close(fd)
+
+        if fi.st_mtime > file_time :
+            card_data = read_card_data(csv_filename)
+            file_time = fi.st_mtime
+    except :
+        botlog.critical( "authenticate can't fstat CSV %s" % csv_filename)
+    
+
+
+
+
+# check for empty tag dict?
+re_read_file()
 
 
 def get_access(rfid) :
     "given an integer rfid card number, return None or a tuple of (username,allowed)"
+
+    re_read_file()
 
     m = hashlib.sha224()
 
@@ -72,6 +101,8 @@ def get_access(rfid) :
 
 
 def test() :
+
+    print 'card_data %d' % len(card_data)
 
     print
     test_tag = '0004134419'
