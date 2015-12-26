@@ -1,6 +1,7 @@
 import serial
 import sys
 import time
+
 ##from operator import xor
 
 
@@ -45,11 +46,12 @@ class rfid_reader_serial() :
         pass
 
 
-    def initialize(self, serial_port="/dev/ttyAMA0") :
+    def initialize(self, serial_port="/dev/ttyAMA0", baud_rate=9600) :
 
+        print 'br=%d' % baud_rate
         # Open UART (close first just to make sure)
         #
-        self.UART = serial.Serial(serial_port, 9600)
+        self.UART = serial.Serial(serial_port, baud_rate)
         self.UART.close()
         self.UART.open()
 

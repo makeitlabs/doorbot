@@ -39,7 +39,7 @@ botlog.setLevel(logging.DEBUG)
 # define the rfid reader device type
 #
 reader = rfid_reader_serial()
-
+SERIAL_BAUD_RATE = 115200
 
 
 # authenticate.py
