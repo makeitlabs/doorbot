@@ -1,0 +1,11 @@
+<RCC>
+  <qresource prefix="/icons">
+    <file>Clock-512.png</file>
+    <file>Unlock-520.png</file>
+    <file>Lock-520.png</file>
+    <file>Hand Cursor-520.png</file>
+    <file>Attention-520.png</file>
+    <file>Checked-512.png</file>
+    <file>Cancel-520.png</file>
+  </qresource>
+</RCC>
