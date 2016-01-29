@@ -6,36 +6,86 @@ from datetime import datetime, date, time
 from PyQt4 import QtGui
 from PyQt4.QtWebKit import QWebView
 from PyQt4.QtCore import Qt, QUrl, QTimer
-from PyQt4.QtGui import QApplication, QWidget, QCursor, QPalette
+from PyQt4.QtGui import QApplication, QWidget, QDialog, QCursor, QPalette, QDesktopWidget
 from PyQt4.QtNetwork import QLocalSocket
 
-# to rebuild ui file with PyQt4:
+# to build ui and resources file with PyQt4:
 # pyuic4 bot.ui -o ui_bot.py
-# 
+# pyuic4 access.ui -o ui_access.py
+# pyrcc4 -py3 icons.qrc -o icons_rc.py
+#
+#
 from ui_bot import Ui_BotGUI
+from ui_access import Ui_AccessDialog
 
 def sigint_handler(*args):
     QApplication.quit()
+
+
+class AccessDialog(QDialog, Ui_AccessDialog):
+    def __init__(self, parent = None):
+        QDialog.__init__(self, parent)
+
+        self.setupUi(self)
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.hide)
+
+        self.setWindowFlags(Qt.FramelessWindowHint)
+
+        fg = self.frameGeometry()
+        cp = QtGui.QDesktopWidget().availableGeometry().center()
+        fg.moveCenter(cp)
+        self.move(fg.topLeft())
+        
+    def memberAccess(self, result, member):
+        if result == 'allowed':
+            if member['warning'] == '':
+                self.frameLeftBar.setStyleSheet('background-color: rgb(26,185,18);')
+            else:
+                self.frameLeftBar.setStyleSheet('background-color: rgb(255,226,58);')
+                
+        elif result == 'denied':
+            self.frameLeftBar.setStyleSheet('background-color: rgb(185,26,18);')
+
+
+        if member['nickname'] != None:
+            self.labelName.setText(member['nickname'])
+        else:
+            self.labelName.setText(member['member'])
+            
+        self.labelPlan.setText(member['plan'])
+
+        if member['warning'] == '':
+            self.labelWarning.setText('Welcome to MakeIt Labs!  Enjoy your visit.')
+        else:
+            self.labelWarning.setText(member['warning'])
+        self.timer.start(5000)
+        self.open()
+
 
 class DoorbotGUI(QWidget, Ui_BotGUI):
     
     def __init__(self):
         QWidget.__init__(self)
 
-        #uic.loadUi('bot.ui', self)
-        
         self.setupUi(self)
+
+        self.accessDialog = AccessDialog(self)
+        self.accessDialog.hide()
         
         self.dispatchTable = {
             'heartbeat' : self.respHeartBeat,
             'time' : self.respTime,
+            'schedule' : self.respSchedule,
+            'bulletin' : self.respBulletin,
+            'readstatus' : self.respReadStatus,
             'access' : self.respAccess
         }
         
         self.timer = QTimer()
         self.timer.timeout.connect(self.tick)
         self.timer.start(1000)
-        self.statusDisplayCount = 0
 
         self.reconnectTimer = QTimer()
         self.reconnectTimer.timeout.connect(self.onReconnect)
@@ -47,38 +97,33 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
         self.socket.readyRead.connect(self.onReadyRead)
         self.socket.error.connect(self.onError)
         self.socket.connectToServer('doorbotgui')
+
         
         self.setCursor(Qt.BlankCursor)
         self.showFullScreen()
         self.show()
+
+
         
     def tick(self):
-        if self.statusDisplayCount > 0:
-            self.statusDisplayCount = self.statusDisplayCount - 1
-            if self.statusDisplayCount == 0:
-                self.labelStatus1.setText('Please scan your RFID Below')
-                self.labelName.setText('')
-                self.labelPlan.setText('')
-                self.labelWarning.setText('')
-                p = self.labelWarning.palette()
-                p.setColor(self.backgroundRole(), Qt.black)
-                self.labelWarning.setPalette(p)
+        print('tick')
+
                 
 
     def onReconnect(self):
         self.reconnectTimer.stop()
-        self.labelStatus2.setText('reconnecting')
+        self.labelHealth.setText('Reconnecting to backend.')
         self.socket.connectToServer('doorbotgui')
         
     def onConnect(self):
-        self.labelStatus2.setText('connected')
+        self.labelHealth.setText('Connected to backend.')
         
     def onDisconnect(self):
-        self.labelStatus2.setText('disconnected')
+        self.labelHealth.setText('Disconnected from backend.')
         self.reconnectTimer.start(2000)
 
     def onError(self, err):
-        self.labelStatus2.setText('error ' + self.socket.errorString() )
+        self.labelHealth.setText('Backend connect error ' + self.socket.errorString() + '.' )
         self.reconnectTimer.start(2000)
         
     def onReadyRead(self):
@@ -100,39 +145,32 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
                 
 
     def respHeartBeat(self, pkt):
-        self.labelStatus2.setText('heartbeat %d' % pkt['count'])
+        # TODO: track and add timeout
+        self.heartbeats = pkt['count']
 
     def respTime(self, pkt):
-        self.labelStatus3.setText(pkt['time'])
+        self.labelTime.setText(pkt['time'])
 
+    def respSchedule(self, pkt):
+        desc = pkt['description']
+        self.labelSchedule.setText(desc)
+
+    def respBulletin(self, pkt):
+        source = pkt['source']
+
+        self.textBrowser.setSource(QUrl(source))
+        self.textBrowser.reload()
+
+    def respReadStatus(self, pkt):
+        status = pkt['status']
+        self.labelReadStatus.setText(status)
+        
+        
     def respAccess(self, pkt):
         result = pkt['result']
-        if 'member' in pkt:
-            member = pkt['member']
-            
-            self.labelName.setText(member['member'])
-            self.labelPlan.setText(member['plan'])
+        member = pkt['member']
 
-            if not member['warning'] == '':
-                self.labelWarning.setText(member['warning'])
-            else:
-                self.labelWarning.setText('Welcome to MakeIt Labs!')
-                
-            p = self.labelWarning.palette()
-            if result == 'allowed':
-                if not member['warning'] == '':
-                    p.setColor(self.foregroundRole(), QColor(0xcc, 0x7c, 0x2b))
-                else:
-                    p.setColor(self.foregroundRole(), Qt.green)
-
-                self.status1.setText('Welcome')
-
-            elif result == 'denied':
-                self.labelStatus1.setText('Access Denied')
-                p.setColor(self.foregroundRole(), Qt.red)
-
-            self.labelWarning.setPalette(p)
-            self.statusDisplayCount = 5
+        self.accessDialog.memberAccess(result, member)
         
 def main():
     signal.signal(signal.SIGINT, sigint_handler)
