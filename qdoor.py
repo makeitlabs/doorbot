@@ -1,5 +1,6 @@
 from PyQt4.QtCore import QThread, QCoreApplication, QTimer, QSocketNotifier
 
+from enum import Enum
 import signal
 import sys
 from time import sleep
@@ -16,12 +17,24 @@ def sigint_handler(*args):
     QCoreApplication.quit()
         
 
+class Status(Enum):
+    INIT = 'init'
+    READY = 'ready'
+    READING = 'reading'
+    DENIED = 'denied'
+    ALLOWED = 'allowed'
+    UNKNOWN = 'unknown'
+    LATCHED = 'latched'
+    ERROR = 'error'
+    
 class RFIDReaderThread(QThread):
     
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.exiting = False
 
+        self.status = Status.INIT
+        
         self.hw = DoorHW(red_pin=qsetup.RED_PIN, green_pin=qsetup.GREEN_PIN, door_pin=qsetup.DOOR_PIN, beep_pin=qsetup.BEEP_PIN)
 
         self.reader = rfid_reader.factory(qsetup.READER_TYPE)
@@ -34,15 +47,44 @@ class RFIDReaderThread(QThread):
         self.exiting = True
         self.wait()
 
+    def updateLEDs(self):
+        if self.status == Status.INIT:
+            self.hw.green(on=True)
+            self.hw.red(on=True)
+        elif self.status == Status.READY:
+            self.hw.green(on=self.blinkPhase)
+            self.hw.red(on=False)
+        elif self.status == Status.DENIED:
+            self.hw.green(on=False)
+            self.hw.red(on=True)
+        elif self.status == Status.ALLOWED or self.status == Status.LATCHED:
+            self.hw.green(on=True)
+            self.hw.red(on=False)
+        elif self.status == Status.ERROR:
+            self.hw.green(on=False)
+            self.hw.red(on=self.blinkPhase)
+        
     def blink(self):
-        print('blink phase %s' % self.blinkPhase)
-        self.hw.green(on=self.blinkPhase)
+        self.updateLEDs()
         self.blinkPhase = not self.blinkPhase
 
-    def latch(self):
+    def setStatus(self, s):
+        botlog.debug('status change from %s to %s' % (self.status, s))
+        self.status = s
+        self.updateLEDs()
+        
+    def unlatch(self):
         self.hw.latch(open=False)
-        self.hw.green(on=False)
+        self.setStatus(Status.READY)
+        self.reader.flush()
+        self.notifier.setEnabled(True)
 
+    def undelay(self):
+        self.setStatus(Status.READY)
+        self.reader.flush()
+        self.notifier.setEnabled(True)
+
+        
     def onData(self):
         rfid_str = self.reader.get_card()
         if not rfid_str:
@@ -57,6 +99,7 @@ class RFIDReaderThread(QThread):
         # 4. bad card from some reason
         # 5. unknown card
         try :
+            self.setStatus(Status.READING)
             rfid = int(rfid_str)
             
             access = qauthenticate.get_access(rfid)
@@ -72,9 +115,11 @@ class RFIDReaderThread(QThread):
                     # open the door
                     #
                     #self.hw.open_sesame()
+                    self.setStatus(Status.ALLOWED)
+                    self.setStatus(Status.LATCHED)
+
                     self.hw.latch(open=True)
-                    self.hw.green(on=True)
-                    self.latchTimer.setSingleShot(True)
+                    self.notifier.setEnabled(False)
                     self.latchTimer.start(4000)
 
                 else :
@@ -82,12 +127,18 @@ class RFIDReaderThread(QThread):
                     # access failed.  blink the red
                     #
                     botlog.warning('%s DENIED' % username)
-                    #self.hw.blink_red()           
+                    self.setStatus(Status.DENIED)
+                    self.notifier.setEnabled(False)
+                    self.delayTimer.start(3000)
+
 
             else :
                 #5
                 botlog.warning('Unknown card %s ' % rfid_str)
-                #self.hw.blink_red()           
+                self.setStatus(Status.UNKNOWN)
+                self.notifier.setEnabled(False)
+                self.delayTimer.start(3000)
+                
 
         except :
             #4
@@ -97,10 +148,11 @@ class RFIDReaderThread(QThread):
             # other exception?
             e = traceback.format_exc().splitlines()[-1]
             botlog.error('door loop unexpected exception: %s' % e)
-            #self.hw.blink_red(4)
+            self.setStatus(Status.ERROR)
+            self.notifier.setEnabled(False)
+            self.delayTimer.start(3000)
 
-        #sleep(3)
-        #self.reader.flush()  # needed for serial reader that keeps sending stuff.
+            
         
     def run(self):
         botlog.info( '%s Thread Running.' % qsetup.botname)
@@ -110,7 +162,12 @@ class RFIDReaderThread(QThread):
         self.blinkTimer.timeout.connect(self.blink)        
 
         self.latchTimer = QTimer()
-        self.latchTimer.timeout.connect(self.latch)
+        self.latchTimer.timeout.connect(self.unlatch)
+        self.latchTimer.setSingleShot(True)
+
+        self.delayTimer = QTimer()
+        self.delayTimer.timeout.connect(self.undelay)
+        self.delayTimer.setSingleShot(True)
         
         self.notifier = QSocketNotifier(self.reader.fileno(), QSocketNotifier.Read)
         self.notifier.activated.connect(self.onData)
@@ -118,6 +175,7 @@ class RFIDReaderThread(QThread):
         self.blinkTimer.start(250)
         self.notifier.setEnabled(True)
 
+        self.setStatus(Status.READY)
         self.exec()
         
         botlog.info( '%s Thread Stopped.' % qsetup.botname)
