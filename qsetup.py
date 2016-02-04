@@ -44,8 +44,10 @@ READER_BAUD_RATE = 9600
 
 # authenticate.py
 #
-card_data_file = 'databases/rfid/CardData.csv'
-
+AUTHENTICATE_TYPE = 'csv'
+AUTHENTICATE_CSV_FILE = 'databases/rfid/CardData.csv'
+AUTHENTICATE_JSON_FILE = 'databases/rfid/acl.json'
+AUTHENTICATE_FILE = AUTHENTICATE_CSV_FILE
 
 
 # door_hw.py
@@ -54,6 +56,6 @@ card_data_file = 'databases/rfid/CardData.csv'
 # no red LED so double up the green one
 #
 RED_PIN = 12
-GREEN_PIN = 12
+GREEN_PIN = 20
 DOOR_PIN = 21
 BEEP_PIN = None

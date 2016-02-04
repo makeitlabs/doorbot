@@ -9,7 +9,7 @@ import qsetup
 import traceback
 from qsetup import botlog
 
-import qauthenticate
+from qauthenticate import *
 from qdoor_hw import DoorHW
 from qrfid import rfid_reader
 
@@ -39,6 +39,8 @@ class RFIDReaderThread(QThread):
 
         self.reader = rfid_reader.factory(qsetup.READER_TYPE)
         self.reader.initialize(baud_rate=qsetup.READER_BAUD_RATE)
+
+        self.authenticate = Authenticate.factory(qsetup.AUTHENTICATE_TYPE, qsetup.AUTHENTICATE_FILE)
         
         botlog.info( '%s Thread Initialized.' % qsetup.botname)
         
@@ -54,7 +56,7 @@ class RFIDReaderThread(QThread):
         elif self.status == Status.READY:
             self.hw.green(on=self.blinkPhase)
             self.hw.red(on=False)
-        elif self.status == Status.DENIED:
+        elif self.status == Status.DENIED or self.status == Status.UNKNOWN:
             self.hw.green(on=False)
             self.hw.red(on=True)
         elif self.status == Status.ALLOWED or self.status == Status.LATCHED:
@@ -102,15 +104,16 @@ class RFIDReaderThread(QThread):
             self.setStatus(Status.READING)
             rfid = int(rfid_str)
             
-            access = qauthenticate.get_access(rfid)
+            access = self.authenticate.get_access(rfid)
                     
             if access:
-                (username,allowed) = access
+                allowed = access['allowed']
+                member = access['member']
 
                 if 'allowed' in allowed :
                     #3, yay!
                     #
-                    botlog.info('%s allowed' % username)
+                    botlog.info('%s allowed' % member)
 
                     # open the door
                     #
@@ -126,7 +129,7 @@ class RFIDReaderThread(QThread):
                     #2
                     # access failed.  blink the red
                     #
-                    botlog.warning('%s DENIED' % username)
+                    botlog.warning('%s DENIED' % member)
                     self.setStatus(Status.DENIED)
                     self.notifier.setEnabled(False)
                     self.delayTimer.start(3000)
