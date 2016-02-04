@@ -8,10 +8,10 @@ class DoorHW:
         #
         GPIO.setmode(GPIO.BCM)
 
-        self.RED_PIN = red_pin #16
-        self.GREEN_PIN = green_pin #None
-        self.DOOR_PIN = door_pin #21
-        self.BEEP_PIN = beep_pin #None
+        self.RED_PIN = red_pin
+        self.GREEN_PIN = green_pin
+        self.DOOR_PIN = door_pin
+        self.BEEP_PIN = beep_pin
 
         self.pins = [self.RED_PIN, self.GREEN_PIN, self.DOOR_PIN, self.DOOR_PIN]
 
@@ -36,13 +36,13 @@ class DoorHW:
         "Turn the red LED on or off"
 
         if self.RED_PIN:
-            GPIO.output(self.RED_PIN, on)
+            GPIO.output(self.RED_PIN, not on)
 
     def green(self, on=True):
         "Turn the green LED on or off"
 
         if self.GREEN_PIN:
-            GPIO.output(self.GREEN_PIN, on)
+            GPIO.output(self.GREEN_PIN, not on)
 
     def latch(self, open=False):
         "Open the latch when True"
