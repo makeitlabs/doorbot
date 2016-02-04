@@ -3,6 +3,7 @@ import os
 import re
 import hashlib
 import qsetup
+import json
 from qsetup import botlog
 
 # base class
@@ -16,16 +17,49 @@ class Authenticate():
         assert 0, 'bad authentication type ' + t
 
     def __init__(self, filename):
+        self.card_data = {}
+
         self.filename = filename
+
+        # tracks file updates
+        self.file_time = 0
     
     def load(self):
         pass
 
-    def reload(self):
-        pass
+    def reload(self) :
+        "check the file and reload data if needed"
 
-    def get_access(self, rfid):
-        pass
+        try:
+            fd = os.open(self.filename, os.O_RDONLY)
+            fi = os.fstat(fd)
+            os.close(fd)
+
+            if fi.st_mtime > self.file_time :
+                self.card_data = self.load()
+                self.file_time = fi.st_mtime
+        except OSError as e:
+            botlog.critical( "reload exception on file %s: %s" % (self.filename, e.strerror))
+        except:
+            botlog.critical( "reload exception on file %s: %s" % (self.filename, sys.exc_info()))
+    
+    def get_access(self, rfid) :
+        "given an integer rfid card number, return None or a tuple of (username,allowed)"
+
+        self.reload()
+
+        # hash the RFID key.  legacy stuff from original circa 2011 system.  becausejoe.        
+        m = hashlib.sha224()
+        rfidStr = "%.10d"%(int(rfid))
+        m.update(str(rfidStr).encode())
+        rfid_hash = m.hexdigest()
+        
+        botlog.debug( 'rfid_hash: %s' % rfid_hash)
+
+        if rfid_hash not in self.card_data :
+            return None
+
+        return self.card_data[rfid_hash]
 
     def test(self) :
         print('TEST card_data has %d entries' % len(self.card_data))
@@ -41,18 +75,35 @@ class Authenticate():
 
         print('TEST 1234 %s' % self.get_access(1234))
 
-
-# CSV formatted ACL file
-class AuthenticateCSV(Authenticate):
+        
+# JSON formatted ACL file (API ACL format v1)
+class AuthenticateJSON(Authenticate):
     def __init__(self, filename):
         Authenticate.__init__(self, filename)
 
-        print('AuthenticateCSV init filename=%s' % self.filename)
+        self.reload()
 
-        self.card_data = {}
+    def load(self):
+        "return a dictionary of dictionaries with member info indexed by hashed rfid"
+
+        cd = {}
+        try:
+            with open(self.filename) as json_file:
+                json_data = json.load(json_file)
+            
+            for member in json_data:
+                cd[member['tagid']] = member
+                
+        except:
+            botlog.error('exception loading JSON ACL %s: %s' % (self.filename, sys.exc_info()))
+
+        return cd
         
-        # tracks file updates
-        self.file_time = 0
+        
+# CSV formatted ACL file (API ACL format v0)
+class AuthenticateCSV(Authenticate):
+    def __init__(self, filename):
+        Authenticate.__init__(self, filename)
 
         # regex to match a csv line that includes ,, fields and "a,b,c" nested commas
         # http://stackoverflow.com/questions/18144431/regex-to-split-a-csv
@@ -61,7 +112,7 @@ class AuthenticateCSV(Authenticate):
         self.reload()
 
     def load(self):
-        "return a dictionary of (username,key,allowed) indexed by hashed rfid"
+        "return a dictionary of dictionaries with member info indexed by hashed rfid"
 
         try:
             f = open(self.filename)
@@ -84,43 +135,12 @@ class AuthenticateCSV(Authenticate):
         botlog.info( "authenticate read CSV %s %d entries" % (self.filename, len(cd)))
         return cd
 
-    def reload(self) :
-        "check the file and reload data if needed"
-
-        try:
-            fd = os.open(self.filename, os.O_RDONLY)
-            fi = os.fstat(fd)
-            os.close(fd)
-
-            if fi.st_mtime > self.file_time :
-                self.card_data = self.load()
-                self.file_time = fi.st_mtime
-        except OSError as e:
-            botlog.critical( "authenticate failure on file %s: %s" % (self.filename, e.strerror))
-        except:
-            botlog.critical( "authenticate exception on file %s" % self.filename)
-    
-    def get_access(self, rfid) :
-        "given an integer rfid card number, return None or a tuple of (username,allowed)"
-
-        self.reload()
-
-        # hash the RFID key.  legacy stuff from original circa 2011 system.  becausejoe.        
-        m = hashlib.sha224()
-        rfidStr = "%.10d"%(int(rfid))
-        m.update(str(rfidStr).encode())
-        rfid_hash = m.hexdigest()
-        
-        botlog.debug( 'rfid_hash: %s' % rfid_hash)
-
-
-        if rfid_hash not in self.card_data :
-            return None
-
-        return self.card_data[rfid_hash]
 
 
 if __name__ == '__main__':
     # test
-    a = Authenticate.factory('csv', qsetup.AUTHENTICATE_CSV_FILE)
-    a.test()
+    c = Authenticate.factory('csv', qsetup.AUTHENTICATE_CSV_FILE)
+    c.test()
+
+    j = Authenticate.factory('json', qsetup.AUTHENTICATE_JSON_FILE)
+    j.test()
