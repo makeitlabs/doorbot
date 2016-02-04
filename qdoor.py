@@ -1,15 +1,15 @@
 from PyQt4.QtCore import QThread, QCoreApplication, QTimer, QSocketNotifier, pyqtSignal, pyqtSlot
 from PyQt4.QtNetwork import QLocalServer
 
-from enum import Enum
+from enum import Enum, unique
 import signal
 import sys
 from time import sleep
 import re
-import qsetup
 import traceback
+from datetime import datetime, date, time
+import qsetup
 from qsetup import botlog
-
 from qauthenticate import *
 from qdoor_hw import DoorHW
 from qrfid import rfid_reader
@@ -17,17 +17,16 @@ from qrfid import rfid_reader
 def sigint_handler(*args):
     QCoreApplication.quit()
         
-
+@unique
 class Status(Enum):
-    INIT = 'init'
-    READY = 'ready'
-    READING = 'reading'
-    DENIED = 'denied'
-    ALLOWED = 'allowed'
-    UNKNOWN = 'unknown'
-    LATCHED = 'latched'
-    ERROR = 'error'
-
+    INIT = 0
+    READY = 1
+    READING = 2
+    DENIED = 3
+    ALLOWED = 4
+    UNKNOWN = 5
+    LATCHED = 6
+    ERROR = 7
 
 class SocketServerThread(QThread):
     def __init__(self, parent=None, readerThread=None):
@@ -35,6 +34,8 @@ class SocketServerThread(QThread):
 
         self.readerThread = readerThread;
         self.connected = False
+
+        self.timer = QTimer()
         
         self.server = QLocalServer()
         QLocalServer.removeServer('doorbotgui')
@@ -48,6 +49,10 @@ class SocketServerThread(QThread):
     def __del__(self):
         botlog.info('SocketServer Thread Deletion')
 
+    def onTimer(self):
+        if self.connected:
+            self.sendCurrentTime()
+        
     def sendPacket(self, pkt):
         if self.connected:
             try:
@@ -62,6 +67,15 @@ class SocketServerThread(QThread):
 
     def sendAccess(self, allowed, memberData):
         pkt = {'cmd':'access', 'result':allowed, 'member':memberData}
+        self.sendPacket(pkt)
+
+    def sendCurrentTime(self):
+        pkt = {'cmd':'time', 'time':datetime.now().strftime("%A, %d %B %Y %H:%M:%S")}
+        self.sendPacket(pkt)
+
+    def sendCurrentSchedule(self):
+        # TODO: actually provide schedule description here, and add signal for schedule change
+        pkt = {'cmd':'schedule', 'description':'Currently open to all active members.'}
         self.sendPacket(pkt)
         
     def onStatusChange(self, status):
@@ -83,8 +97,7 @@ class SocketServerThread(QThread):
         self.connected = True
             
         self.sendReadStatus()
-        
-
+        self.sendCurrentSchedule()
 
     def onDisconnect(self):
         self.connected = False
@@ -100,6 +113,9 @@ class SocketServerThread(QThread):
         
         self.server.newConnection.connect(self.onConnect)
 
+        self.timer.timeout.connect(self.onTimer)
+        self.timer.start(1000)
+        
         self.exec()
         botlog.info('SocketServerThread Stopped.')
 
@@ -221,6 +237,7 @@ class RFIDReaderThread(QThread):
                 #5
                 botlog.warning('Unknown card %s ' % rfid_str)
                 self.setStatus(Status.UNKNOWN)
+                self.signalAccess.emit('denied', {'member':'Unknown.RFID.Tag', 'plan':None, 'tagid':'', 'allowed':'denied', 'nickname':None, 'warning':'This RFID tag is not recognized.  Be sure you are using the correct tag and hold it steady over the read antenna.\n\nContact board@makeitlabs.com if you continue to have problems.'})
                 self.notifier.setEnabled(False)
                 self.delayTimer.start(3000)
                 

@@ -1,5 +1,6 @@
 import sys
 import signal
+from subprocess import check_output
 import json
 from datetime import datetime, date, time
 
@@ -48,18 +49,35 @@ class AccessDialog(QDialog, Ui_AccessDialog):
         elif result == 'denied':
             self.frameLeftBar.setStyleSheet('background-color: rgb(185,26,18);')
 
-
-        if member['nickname'] != None:
+        if member['nickname'] is not None:
             self.labelName.setText(member['nickname'])
         else:
-            self.labelName.setText(member['member'])
-            
-        self.labelPlan.setText(member['plan'])
+            self.labelName.setText(member['member'].replace('.', ' '))
 
-        if member['warning'] == '':
+        if not 'plan' in member or member['plan'] is None:
+            self.labelPlan.setVisible(False)
+        elif 'pro' in member['plan']:
+            self.labelPlan.setVisible(True)
+            self.labelPlan.setText('Professional Member')
+        elif 'hobby' in member['plan']:
+            self.labelPlan.setVisible(True)
+            self.labelPlan.setText('Hobbyist Member')
+        else:
+            self.labelPlan.setVisible(True)
+            self.labelPlan.setText('Member')
+
+        if result == 'allowed' and member['warning'] == '':
             self.labelWarning.setText('Welcome to MakeIt Labs!  Enjoy your visit.')
         else:
             self.labelWarning.setText(member['warning'])
+
+        if 'last_accessed' in member:
+            self.labelLastVisit.setVisible(True)
+            self.labelLastVisit.setText('Last visit on %s' % member['last_accessed'])
+        else:
+            self.labelLastVisit.setVisible(False)
+            self.labelLastVisit.setText('')
+                                        
         self.timer.start(5000)
         self.open()
 
@@ -75,7 +93,6 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
         self.accessDialog.hide()
         
         self.dispatchTable = {
-            'heartbeat' : self.respHeartBeat,
             'time' : self.respTime,
             'schedule' : self.respSchedule,
             'bulletin' : self.respBulletin,
@@ -103,12 +120,8 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
         self.showFullScreen()
         self.show()
 
-
-        
     def tick(self):
-        print('tick')
-
-                
+        pass
 
     def onReconnect(self):
         self.reconnectTimer.stop()
@@ -141,12 +154,7 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
                 print('could not decode json')
 
             except:
-                print('could not dispatch')
-                
-
-    def respHeartBeat(self, pkt):
-        # TODO: track and add timeout
-        self.heartbeats = pkt['count']
+                print('could not dispatch: %s', sys.exc_info())
 
     def respTime(self, pkt):
         self.labelTime.setText(pkt['time'])
@@ -163,7 +171,25 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
 
     def respReadStatus(self, pkt):
         status = pkt['status']
-        self.labelReadStatus.setText(status)
+
+        if status == 'Status.INIT':
+            statusText = 'Initializing System.'
+        elif status == 'Status.READY':
+            statusText = 'Please scan your tag below.'
+        elif status == 'Status.READING':
+            statusText = 'Reading tag...'
+        elif status == 'Status.DENIED':
+            statusText = 'Access denied.'
+        elif status == 'Status.ALLOWED' or status == 'Status.LATCHED':
+            statusText = 'Access granted.'
+        elif status == 'Status.UNKNOWN':
+            statusText = 'Tag not recognized.'
+        elif status == 'Status.ERROR':
+            statusText = 'An unexpected error has occurred.  Contact board@makeitlabs.com.'
+        else:
+            statusText = 'Unexpected status: %s' % status
+        
+        self.labelReadStatus.setText(statusText)
         
         
     def respAccess(self, pkt):

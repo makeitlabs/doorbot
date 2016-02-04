@@ -86,6 +86,8 @@ color: rgb(0, 0, 0);</string>
         <property name="font">
          <font>
           <pointsize>20</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
          </font>
         </property>
         <property name="text">
@@ -107,6 +109,37 @@ color: rgb(0, 0, 0);</string>
        </spacer>
       </item>
       <item>
+       <widget class="Line" name="line">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="labelLastVisit">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>60</height>
+         </size>
+        </property>
+        <property name="font">
+         <font>
+          <pointsize>20</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>Last Visit</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QLabel" name="labelWarning">
         <property name="minimumSize">
          <size>
@@ -120,7 +153,7 @@ color: rgb(0, 0, 0);</string>
          </font>
         </property>
         <property name="text">
-         <string>TextLabel</string>
+         <string>Warning Text</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
