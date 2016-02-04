@@ -4,6 +4,7 @@ import re
 import hashlib
 import qsetup
 import json
+import time
 from qsetup import botlog
 
 # base class
@@ -23,7 +24,10 @@ class Authenticate():
 
         # tracks file updates
         self.file_time = 0
-    
+
+    def get_file_time(self):
+        return time.ctime(self.file_time)
+        
     def load(self):
         pass
 

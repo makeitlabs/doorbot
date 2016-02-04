@@ -135,7 +135,8 @@ class RFIDReaderThread(QThread):
         self.reader.initialize(baud_rate=qsetup.READER_BAUD_RATE)
 
         self.authenticate = Authenticate.factory(qsetup.AUTHENTICATE_TYPE, qsetup.AUTHENTICATE_FILE)
-        
+
+        botlog.info('authentication file date %s' % self.authenticate.get_file_time())
         botlog.info('RFIDReaderThread Initialized.')
         
     def __del__(self):
