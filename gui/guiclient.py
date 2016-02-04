@@ -71,7 +71,7 @@ class AccessDialog(QDialog, Ui_AccessDialog):
         else:
             self.labelWarning.setText(member['warning'])
 
-        if 'last_accessed' in member:
+        if 'last_accessed' in member and member['last_accessed'] is not None:
             self.labelLastVisit.setVisible(True)
             self.labelLastVisit.setText('Last visit on %s' % member['last_accessed'])
         else:
