@@ -52,6 +52,7 @@ class SocketServerThread(QThread):
     def onTimer(self):
         if self.connected:
             self.sendCurrentTime()
+            self.sendCurrentSchedule()
         
     def sendPacket(self, pkt):
         if self.connected:
@@ -74,8 +75,7 @@ class SocketServerThread(QThread):
         self.sendPacket(pkt)
 
     def sendCurrentSchedule(self):
-        # TODO: actually provide schedule description here, and add signal for schedule change
-        pkt = {'cmd':'schedule', 'description':'Currently open to all active members.'}
+        pkt = {'cmd':'schedule', 'description':qsetup.schedule.scheduleDesc()}
         self.sendPacket(pkt)
         
     def onStatusChange(self, status):
@@ -192,7 +192,9 @@ class RFIDReaderThread(QThread):
         # Several things can happen:
         # 1. some error in reading.
         # 2. good card, not allowed
-        # 3. good card, allowed: yay!
+        # 3. good card, allowed:
+        # 3a.  schedule permits access at this time, so open door
+        # 3b.  schedule does not permit access at this time.
         # 4. bad card from some reason
         # 5. unknown card
         try :
@@ -204,26 +206,38 @@ class RFIDReaderThread(QThread):
             if access:
                 allowed = access['allowed']
                 member = access['member']
-
+                plan = access['plan']
+                
                 print(allowed)
                 print(access)
-                self.signalAccess.emit(allowed, access)
+                print(plan)
                 
                 if 'allowed' in allowed :
-                    #3, yay!
-                    #
-                    botlog.info('%s allowed' % member)
+                    if qsetup.schedule.isAllowed(plan):
+                        # 3a. open the door
+                        #
+                        botlog.info('%s allowed' % member)
 
-                    # open the door
-                    #
-
-                    self.setStatus(Status.ALLOWED)
-                    self.setStatus(Status.LATCHED)
+                        self.setStatus(Status.ALLOWED)
+                        self.setStatus(Status.LATCHED)
                     
-                    self.hw.latch(open=True)
-                    self.notifier.setEnabled(False)
-                    self.latchTimer.start(4000)
+                        self.hw.latch(open=True)
+                        self.notifier.setEnabled(False)
+                        self.latchTimer.start(4000)
+                    else:
+                        # 3b. denied due to local schedule
+                        botlog.warning('%s DENIED due to schedule restriction' % member)
 
+                        allowed = 'denied'
+
+                        if member['warning'] is None or member['warning'] == '':
+                            member['warning'] = qsetup.schedule.scheduleDesc()
+                        else:
+                            member['warning'] += '\n%s' % qsetup.schedule.scheduleDesc()
+                            
+                        self.setStatus(Status.DENIED)
+                        self.notifier.setEnabled(False)
+                        self.delayTimer.start(3000)
                 else :
                     #2
                     # access failed.  blink the red
@@ -239,9 +253,12 @@ class RFIDReaderThread(QThread):
                 botlog.warning('Unknown card %s ' % rfid_str)
                 self.setStatus(Status.UNKNOWN)
                 self.signalAccess.emit('denied', {'member':'Unknown.RFID.Tag', 'plan':None, 'tagid':'', 'allowed':'denied', 'nickname':None, 'warning':'This RFID tag is not recognized.  Be sure you are using the correct tag and hold it steady over the read antenna.\n\nContact board@makeitlabs.com if you continue to have problems.'})
+
                 self.notifier.setEnabled(False)
                 self.delayTimer.start(3000)
-                
+
+            self.signalAccess.emit(allowed, access)
+
 
         except :
             #4

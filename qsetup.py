@@ -1,7 +1,7 @@
 
 import logging
 from qrfid import *
-
+from qschedule import Schedule
 
 botname = 'doorbot'
 
@@ -37,7 +37,7 @@ botlog.setLevel(logging.DEBUG)
 
 # define the rfid reader device type
 #
-#reader = rfid_reader_serial()
+#READER_TYPE = 'hid'
 READER_TYPE = 'serial'
 READER_BAUD_RATE = 9600
 
@@ -49,6 +49,9 @@ AUTHENTICATE_CSV_FILE = 'databases/rfid/CardData.csv'
 AUTHENTICATE_JSON_FILE = 'databases/rfid/acl.json'
 AUTHENTICATE_FILE = AUTHENTICATE_JSON_FILE
 
+# qschedule.py
+schedule = Schedule.factory('entry')
+
 
 # door_hw.py
 #
@@ -59,3 +62,4 @@ RED_PIN = 12
 GREEN_PIN = 20
 DOOR_PIN = 21
 BEEP_PIN = None
+

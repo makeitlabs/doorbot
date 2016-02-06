@@ -12,13 +12,13 @@ class rfid_reader() :
             return rfid_reader_serial()
         assert 0, "bad rfid type specified: " + t
     
-    def initialize(self) :
+    def initialize(self, baud_rate=None) :
         pass
 
-    def get_card(self) :
+    def get_card(self):
         return None
 
-    def flush(self) :
+    def flush(self):
         pass
 
     def fileno(self):
@@ -27,12 +27,15 @@ class rfid_reader() :
 
 class rfid_reader_hid(rfid_reader) :
 
-    def get_card(self) :
-        return raw_input('input rfid? ')
+    def get_card(self):
+        return input()
 
-    def flush(self) :
+    def flush(self):
         pass
 
+    def fileno(self):
+        return sys.stdin.fileno()
+        
 class rfid_reader_serial(rfid_reader) :
     def __init__(self) :
         # self.ID = ""
