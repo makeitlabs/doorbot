@@ -38,8 +38,13 @@ botlog.setLevel(logging.DEBUG)
 # define the rfid reader device type
 #
 #READER_TYPE = 'hid'
+
 READER_TYPE = 'serial'
+READER_DEVICE = '/dev/ttyUSB0'
 READER_BAUD_RATE = 9600
+
+#READER_TYPE = 'tormach'
+#READER_DEVICE = '/dev/ttyACM0'
 
 
 # authenticate.py
