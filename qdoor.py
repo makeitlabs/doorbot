@@ -132,7 +132,7 @@ class RFIDReaderThread(QThread):
         self.hw = DoorHW(red_pin=qsetup.RED_PIN, green_pin=qsetup.GREEN_PIN, door_pin=qsetup.DOOR_PIN, beep_pin=qsetup.BEEP_PIN)
 
         self.reader = rfid_reader.factory(qsetup.READER_TYPE)
-        self.reader.initialize(baud_rate=qsetup.READER_BAUD_RATE)
+        self.reader.initialize(baud_rate=qsetup.READER_BAUD_RATE, serial_port=qsetup.READER_DEVICE)
 
         self.authenticate = Authenticate.factory(qsetup.AUTHENTICATE_TYPE, qsetup.AUTHENTICATE_FILE)
 
