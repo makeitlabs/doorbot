@@ -118,16 +118,8 @@ class RFIDReaderThread(QThread):
     
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
-
-        self.status = Status.INIT
-        
-        self.reader = rfid_reader.factory(qsetup.READER_TYPE)
-        self.reader.initialize(baud_rate=qsetup.READER_BAUD_RATE, serial_port=qsetup.READER_DEVICE)
-
-        self.authenticate = Authenticate.factory(qsetup.AUTHENTICATE_TYPE, qsetup.AUTHENTICATE_FILE)
-
-        botlog.info('authentication file date %s' % self.authenticate.get_file_time())
         botlog.info('RFIDReaderThread Initialized.')
+
         
     def __del__(self):
         botlog.info('RFIDReaderThread Thread Deletion.')
@@ -144,9 +136,18 @@ class RFIDReaderThread(QThread):
         self.reader.flush()
         self.notifier.setEnabled(True)
 
+    def onError(self):
+        self.reader.close()
+        self.initialized = False
         
     def onData(self):
-        rfid_str = self.reader.get_card()
+        try:
+            rfid_str = self.reader.get_card()
+        except:
+            self.reader.close()
+            self.initialized = False
+            return
+
         if not rfid_str:
             return
         
@@ -218,19 +219,56 @@ class RFIDReaderThread(QThread):
             self.notifier.setEnabled(False)
             self.delayTimer.start(3000)
 
+    def wd(self):
+        if not self.notifier.isEnabled():
+            self.initialized = False
+            self.quit()
+
     def run(self):
         botlog.info('RFIDReaderThread Running.')
 
         self.delayTimer = QTimer()
         self.delayTimer.timeout.connect(self.undelay)
         self.delayTimer.setSingleShot(True)
-        
-        self.notifier = QSocketNotifier(self.reader.fileno(), QSocketNotifier.Read)
-        self.notifier.activated.connect(self.onData)
-        
-        self.setStatus(Status.READY)
-        self.exec()
-        
+
+        self.wdTimer = QTimer()
+        self.wdTimer.timeout.connect(self.wd)
+        self.wdTimer.setSingleShot(False)
+        self.wdTimer.start(1000)
+
+        self.initialized = False
+
+        self.status = Status.INIT
+
+        while self.isRunning():
+            while not self.initialized:
+                try:
+                    self.reader = rfid_reader.factory(qsetup.READER_TYPE)
+                    self.reader.initialize(baud_rate=qsetup.READER_BAUD_RATE, serial_port=qsetup.READER_DEVICE)
+                
+                    self.authenticate = Authenticate.factory(qsetup.AUTHENTICATE_TYPE, qsetup.AUTHENTICATE_FILE)
+                    botlog.info('authentication file date %s' % self.authenticate.get_file_time())
+                    self.initialized = True
+                except:
+                    self.initialized = False
+                    botlog.info('exception opening RFID device')
+                    self.status = Status.ERROR
+                    time.sleep(1)
+              
+            try:
+                self.notifier = QSocketNotifier(self.reader.fileno(), QSocketNotifier.Read)
+                self.notifier.activated.connect(self.onData)
+
+                self.errNotifier = QSocketNotifier(self.reader.fileno(), QSocketNotifier.Exception)
+                self.errNotifier.activated.connect(self.onError)
+
+                self.setStatus(Status.READY)
+                self.exec()
+            except:
+                botlog.info('except during exec')
+                self.initialized = False
+            
+
         botlog.info('RFIDReaderThread Stopped.')
 
 

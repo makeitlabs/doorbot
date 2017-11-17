@@ -61,7 +61,6 @@ class rfid_reader_serial(rfid_reader) :
         self.UART.flushInput()
 
     def get_card(self) :
-
         if not self.UART.inWaiting() :
             return None
 
@@ -116,9 +115,11 @@ class rfid_reader_tormach(rfid_reader) :
 
     def fileno(self):
         return self.UART.fileno()
+
+    def close(self):
+        self.UART.close()
     
     def initialize(self, serial_port="/dev/ttyACM0", baud_rate=9600) :
-
         print('port %s %d baud' % (serial_port, baud_rate))
         self.UART = serial.Serial(serial_port, baud_rate)
         self.UART.close()
@@ -128,23 +129,26 @@ class rfid_reader_tormach(rfid_reader) :
         self.UART.reset_input_buffer()
 
     def get_card(self) :
+        try:
+            if self.UART.in_waiting < 12 :
+                return None
 
-        if self.UART.in_waiting < 12 :
-            return None
+            buf = self.UART.read(size=12)
 
-        buf = self.UART.read(size=12)
+            if self.UART.in_waiting:
+                self.flush()
 
-        if self.UART.in_waiting:
-            self.flush()
+            # Print data
+            card = str(int(buf[4:10], 16))
+            print("------------------------------------------")
+            print("Data: ", buf)
+            print("Tag: ", buf[4:10], " = ", card)
+            print("------------------------------------------")
 
-        # Print data
-        card = str(int(buf[4:10], 16))
-        print("------------------------------------------")
-        print("Data: ", buf)
-        print("Tag: ", buf[4:10], " = ", card)
-        print("------------------------------------------")
-
-        return card
+            return card
+        except serial.SerialException:
+            print("serial exception")
+            raise
 
 
 
