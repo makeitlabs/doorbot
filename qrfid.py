@@ -107,7 +107,7 @@ class rfid_reader_serial(rfid_reader) :
         return card
 
 
-# reads from custom pendant RFID which returns 10 hex digits + newline + return:
+# reads from custom pendant RFID which returns STX + 10 hex digits + ETX:
 # 0123456789\n\r
 class rfid_reader_tormach(rfid_reader) :
     def __init__(self) :
@@ -118,6 +118,10 @@ class rfid_reader_tormach(rfid_reader) :
 
     def close(self):
         self.UART.close()
+
+    def set_led(self, mode):
+        self.UART.write(mode.encode('utf-8'))
+
     
     def initialize(self, serial_port="/dev/ttyACM0", baud_rate=9600) :
         print('port %s %d baud' % (serial_port, baud_rate))
@@ -133,18 +137,26 @@ class rfid_reader_tormach(rfid_reader) :
             if self.UART.in_waiting < 12 :
                 return None
 
-            buf = self.UART.read(size=12)
+            while self.UART.in_waiting >= 12:
+                # Read chars
+                buf = self.UART.read(size=1)
 
-            if self.UART.in_waiting:
-                self.flush()
+                # look for STX
+                if buf[0] != 0x02:
+                    return None
 
-            # Print data
-            card = str(int(buf[4:10], 16))
-            print("------------------------------------------")
-            print("Data: ", buf)
-            print("Tag: ", buf[4:10], " = ", card)
-            print("------------------------------------------")
+                buf = self.UART.read(size=11)
+                if buf[10] != 0x03:
+                    return None
 
+                # Print data
+                card = str(int(buf[4:10], 16))
+                #print("------------------------------------------")
+                #print("Data: ", buf)
+                #print("Tag: ", buf[4:10], " = ", card)
+                #print("------------------------------------------")
+
+            #print("returning ", card)
             return card
         except serial.SerialException:
             print("serial exception")

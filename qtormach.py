@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 from PyQt4.QtCore import QThread, QCoreApplication, QTimer, QSocketNotifier, pyqtSignal, pyqtSlot
 from PyQt4.QtNetwork import QLocalServer
 
@@ -21,10 +23,11 @@ class Status(Enum):
     INIT = 0
     READY = 1
     READING = 2
-    DENIED = 3
-    ALLOWED = 4
-    UNKNOWN = 5
-    ERROR = 6
+    PAUSING = 3
+    DENIED = 4
+    ALLOWED = 5
+    UNKNOWN = 6
+    ERROR = 7
 
 class SocketServerThread(QThread):
     def __init__(self, parent=None, readerThread=None):
@@ -120,26 +123,31 @@ class RFIDReaderThread(QThread):
         QThread.__init__(self, parent)
         botlog.info('RFIDReaderThread Initialized.')
 
+        self.last_read = datetime.now();
+        self.last_rfid_str = ''
         
     def __del__(self):
         botlog.info('RFIDReaderThread Thread Deletion.')
         self.wait()
 
+    def done(self):
+        self.reader.set_led('0')
+        
     def setStatus(self, s):
-        botlog.debug('status change from %s to %s' % (self.status, s))
-        self.status = s
-        self.signalStatusChange.emit(s)
+        if self.status != s:
+            botlog.debug('status change from %s to %s' % (self.status, s))
+            self.status = s
+            self.signalStatusChange.emit(s)
         
     def undelay(self):
-        botlog.debug('undelay')
-        self.setStatus(Status.READY)
         self.reader.flush()
-        self.notifier.setEnabled(True)
+        self.setStatus(Status.READY)
+        self.reader.set_led('2')
 
     def onError(self):
         self.reader.close()
         self.initialized = False
-        
+
     def onData(self):
         try:
             rfid_str = self.reader.get_card()
@@ -151,7 +159,22 @@ class RFIDReaderThread(QThread):
         if not rfid_str:
             return
         
-        botlog.debug( 'RFID string >>%s<<' % rfid_str)
+        now = datetime.now()
+        delta = now - self.last_read;
+        self.last_read = now
+
+        self.reader.set_led('1')
+
+        if delta.seconds < 3 and rfid_str == self.last_rfid_str:
+            botlog.debug('ignoring read, delta last read %s seconds, RFID=%s' % (delta.seconds, rfid_str))
+            self.setStatus(Status.PAUSING)
+            self.delayTimer.stop()
+            self.delayTimer.start(3000)
+            return
+        else:
+            botlog.debug( 'accepting read: %s' % rfid_str)
+
+        self.last_rfid_str = rfid_str
 
         # Several things can happen:
         # 1. some error in reading.
@@ -180,18 +203,16 @@ class RFIDReaderThread(QThread):
                     botlog.info('%s allowed' % member)
                     
                     self.setStatus(Status.ALLOWED)
-                    self.notifier.setEnabled(False)
                     self.delayTimer.stop()
-                    self.delayTimer.start(2000)
+                    self.delayTimer.start(50)
 
                 else :
                     #2
                     # access failed.
                     botlog.warning('%s DENIED' % member)
                     self.setStatus(Status.DENIED)
-                    self.notifier.setEnabled(False)
                     self.delayTimer.stop()
-                    self.delayTimer.start(2000)
+                    self.delayTimer.start(50)
 
             else :
                 #5
@@ -199,9 +220,8 @@ class RFIDReaderThread(QThread):
                 self.setStatus(Status.UNKNOWN)
                 self.signalAccess.emit('denied', {'member':'Unknown.RFID.Tag', 'plan':None, 'tagid':'', 'allowed':'denied', 'nickname':None, 'warning':'This RFID tag is not recognized.  Be sure you are using the correct tag and hold it steady over the read antenna.\n\nContact board@makeitlabs.com if you continue to have problems.'})
 
-                self.notifier.setEnabled(False)
                 self.delayTimer.stop()
-                self.delayTimer.start(3000)
+                self.delayTimer.start(50)
 
             if access and allowed:
                 self.signalAccess.emit(allowed, access)
@@ -216,13 +236,12 @@ class RFIDReaderThread(QThread):
             e = traceback.format_exc().splitlines()[-1]
             botlog.error('door loop unexpected exception: %s' % e)
             self.setStatus(Status.ERROR)
-            self.notifier.setEnabled(False)
-            self.delayTimer.start(3000)
+            self.delayTimer.start(50)
 
     def wd(self):
         if not self.notifier.isEnabled():
             self.initialized = False
-            self.quit()
+            self.status = Status.ERROR
 
     def run(self):
         botlog.info('RFIDReaderThread Running.')
@@ -237,7 +256,6 @@ class RFIDReaderThread(QThread):
         self.wdTimer.start(1000)
 
         self.initialized = False
-
         self.status = Status.INIT
 
         while self.isRunning():
@@ -253,7 +271,7 @@ class RFIDReaderThread(QThread):
                     self.initialized = False
                     botlog.info('exception opening RFID device')
                     self.status = Status.ERROR
-                    time.sleep(1)
+                    self.sleep(1)
               
             try:
                 self.notifier = QSocketNotifier(self.reader.fileno(), QSocketNotifier.Read)
@@ -262,10 +280,13 @@ class RFIDReaderThread(QThread):
                 self.errNotifier = QSocketNotifier(self.reader.fileno(), QSocketNotifier.Exception)
                 self.errNotifier.activated.connect(self.onError)
 
+                self.reader.set_led('2')
+
                 self.setStatus(Status.READY)
                 self.exec()
             except:
                 botlog.info('except during exec')
+                self.status = Status.ERROR
                 self.initialized = False
             
 
@@ -279,9 +300,13 @@ if __name__ == "__main__":
     
     rfid = RFIDReaderThread()
     server = SocketServerThread(readerThread=rfid)
-
     
     rfid.start()
     server.start()
     
     app.exec()
+
+    rfid.done()
+
+    print("done..")
+

@@ -29,6 +29,7 @@ class ReportDialog(QDialog, Ui_ReportDialog):
     def __init__(self, parent = None):
         QDialog.__init__(self, parent)
 
+
         self.setupUi(self)
 
         self.setWindowFlags(Qt.FramelessWindowHint)
@@ -57,6 +58,7 @@ class AccessDialog(QDialog, Ui_AccessDialog):
         self.member = {}
 
         self.timer = QTimer()
+        self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.done)
 
         self.setWindowFlags(Qt.FramelessWindowHint)
@@ -67,10 +69,9 @@ class AccessDialog(QDialog, Ui_AccessDialog):
         fg.moveCenter(cp)
         self.move(fg.topLeft())
 
-
     def done(self):
         self.hide()
-        
+
         print(self.result)
         print(self.member)
 
@@ -119,9 +120,8 @@ class AccessDialog(QDialog, Ui_AccessDialog):
             self.labelLastVisit.setVisible(False)
             self.labelLastVisit.setText('')
                                         
-        self.timer.start(5000)
+        self.timer.start(1000)
         self.open()
-
 
 class DoorbotGUI(QWidget, Ui_BotGUI):
     
@@ -194,7 +194,7 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
             rx = self.socket.readLine(2048).decode('utf-8')
             try:
                 pkt = json.loads(rx)
-                print(pkt)
+                print("pkt received: ", pkt)
 
                 cmd = pkt['cmd']
 
@@ -228,6 +228,8 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
             statusText = 'Please scan your tag below.'
         elif status == 'Status.READING':
             statusText = 'Reading tag...'
+        elif status == 'Status.PAUSING':
+            statusText = 'Please wait a moment and try scanning again...'
         elif status == 'Status.DENIED':
             statusText = 'Access denied.'
         elif status == 'Status.ALLOWED' or status == 'Status.LATCHED':
