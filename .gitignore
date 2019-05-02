@@ -1,0 +1,4 @@
+*.pyc
+curlpw
+doorbot.log
+databases/rfid
