@@ -13,7 +13,7 @@ class DoorHW:
         self.DOOR_PIN = door_pin
         self.BEEP_PIN = beep_pin
 
-        self.pins = [self.RED_PIN, self.GREEN_PIN, self.DOOR_PIN, self.DOOR_PIN]
+        self.pins = [self.RED_PIN, self.GREEN_PIN, self.DOOR_PIN, self.BEEP_PIN]
 
         for pin in self.pins :
             if not pin :

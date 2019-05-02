@@ -32,7 +32,7 @@ class EntrySchedule(Schedule):
             return True
         else:
             now = datetime.now()
-            return isWeekend(now) or not isWeeknight(now)
+            return self.isWeekend(now) or not self.isWeeknight(now)
 
     def scheduleDesc(self, t = None):
         if t is None:

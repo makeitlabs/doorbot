@@ -1,6 +1,4 @@
 #!/bin/sh
 
 cd /home/pi/doorbot
-sudo python door.py &
-
-
+su pi -c "python3 qdoor.py > /dev/null < /dev/null" & 

@@ -5,7 +5,7 @@ import json
 from datetime import datetime, date, time
 
 from PyQt4 import QtGui
-from PyQt4.QtWebKit import QWebView
+#from PyQt5.QtWebKit import QWebView
 from PyQt4.QtCore import Qt, QUrl, QTimer
 from PyQt4.QtGui import QApplication, QWidget, QDialog, QCursor, QPalette, QDesktopWidget
 from PyQt4.QtNetwork import QLocalSocket

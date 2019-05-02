@@ -2,3 +2,5 @@
 curlpw
 doorbot.log
 databases/rfid
+*_rc.py
+ui_*.py

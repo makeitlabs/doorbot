@@ -44,7 +44,7 @@ SERIAL_BAUD_RATE = 9600
 
 # authenticate.py
 #
-card_data_file = 'databases/rfid/CardData.csv'
+card_data_file = 'databases/rfid/acl.json'
 
 
 

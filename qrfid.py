@@ -45,7 +45,6 @@ class rfid_reader_serial(rfid_reader) :
     def __init__(self) :
         pass
 
-
     def fileno(self):
         return self.UART.fileno()
     
@@ -77,14 +76,26 @@ class rfid_reader_serial(rfid_reader) :
             self.flush()
             return None
 
-        # Build ID
-        for Counter in range(13):
+        done = False
+        while not done:
             buf = self.UART.read(size=1)
-            ID = ID + '%c' % buf[0]
+            if buf[0] == 0x03:
+                done = True
+            else:
+            	ID = ID + '%c' % buf[0]
+            
+        # Build ID
+        #for Counter in range(13):
+        #    buf = self.UART.read(size=1)
+        #    ID = ID + '%c' % buf[0]
 
         # Remove ETX from string
-        ID = ID.replace("\x03", "")
+        #ID = ID.replace("\x03", "")
 
+        while len(ID) < 10:
+            ID = '0' + ID
+
+        print(ID)
 
         # Calc checksum
         for I in range(0, 9, 2):

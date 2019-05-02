@@ -1,5 +1,5 @@
-
 import logging
+from logging.handlers import SysLogHandler
 from qrfid import *
 from qschedule import Schedule
 
@@ -32,6 +32,12 @@ logging.getLogger('').addHandler(console)
 #
 botlog.setLevel(logging.DEBUG)
 
+# remote syslog
+syslog = SysLogHandler(address=('10.0.0.1', 514))
+formatter = logging.Formatter('%(asctime)s : %(message)s', datefmt='%b %d %H:%M:%S')
+syslog.setFormatter(formatter)
+botlog.addHandler(syslog)
+
 
 
 
@@ -40,7 +46,7 @@ botlog.setLevel(logging.DEBUG)
 #READER_TYPE = 'hid'
 
 READER_TYPE = 'serial'
-READER_DEVICE = '/dev/ttyUSB0'
+READER_DEVICE = '/dev/ttyS0'
 READER_BAUD_RATE = 9600
 
 #READER_TYPE = 'tormach'
@@ -57,14 +63,11 @@ AUTHENTICATE_FILE = AUTHENTICATE_JSON_FILE
 # qschedule.py
 schedule = Schedule.factory('entry')
 
-
 # door_hw.py
 #
-
-# no red LED so double up the green one
 #
-RED_PIN = 12
-GREEN_PIN = 20
-DOOR_PIN = 21
-BEEP_PIN = None
+RED_PIN = 16
+GREEN_PIN = 13
+DOOR_PIN = 4
+BEEP_PIN = 26
 

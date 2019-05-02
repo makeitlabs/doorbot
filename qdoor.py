@@ -147,18 +147,23 @@ class RFIDReaderThread(QThread):
         if self.status == Status.INIT:
             self.hw.green(on=True)
             self.hw.red(on=True)
+            self.hw.beep(on=False)
         elif self.status == Status.READY:
             self.hw.green(on=self.blinkPhase)
             self.hw.red(on=False)
+            self.hw.beep(on=False)
         elif self.status == Status.DENIED or self.status == Status.UNKNOWN:
             self.hw.green(on=False)
             self.hw.red(on=True)
+            self.hw.beep(on=True)
         elif self.status == Status.ALLOWED or self.status == Status.LATCHED:
             self.hw.green(on=True)
             self.hw.red(on=False)
+            self.hw.beep(on=False)
         elif self.status == Status.ERROR:
             self.hw.green(on=False)
             self.hw.red(on=self.blinkPhase)
+            self.hw.beep(on=False)
         
     def blink(self):
         self.updateLEDs()
@@ -202,7 +207,10 @@ class RFIDReaderThread(QThread):
             rfid = int(rfid_str)
             
             access = self.authenticate.get_access(rfid)
-                    
+
+            allowed = 'false'
+            member = ''
+            plan = ''
             if access:
                 allowed = access['allowed']
                 member = access['member']
@@ -252,7 +260,8 @@ class RFIDReaderThread(QThread):
                 #5
                 botlog.warning('Unknown card %s ' % rfid_str)
                 self.setStatus(Status.UNKNOWN)
-                self.signalAccess.emit('denied', {'member':'Unknown.RFID.Tag', 'plan':None, 'tagid':'', 'allowed':'denied', 'nickname':None, 'warning':'This RFID tag is not recognized.  Be sure you are using the correct tag and hold it steady over the read antenna.\n\nContact board@makeitlabs.com if you continue to have problems.'})
+                access = {'member':'Unknown.RFID.Tag', 'plan':None, 'tagid':'', 'allowed':'denied', 'nickname':None, 'warning':'This RFID tag is not recognized.  Be sure you are using the correct tag and hold it steady over the read antenna.\n\nContact board@makeitlabs.com if you continue to have problems.'}
+                self.signalAccess.emit('denied', access)
 
                 self.notifier.setEnabled(False)
                 self.delayTimer.start(3000)
