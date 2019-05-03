@@ -6,8 +6,8 @@ After=network.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/doorbot
+ExecStartPre=/bin/sleep 15 
 ExecStart=/usr/bin/python3 qdoor.py
-Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
