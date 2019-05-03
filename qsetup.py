@@ -2,6 +2,9 @@ import logging
 from logging.handlers import SysLogHandler
 from qrfid import *
 from qschedule import Schedule
+import fcntl
+import socket
+import struct
 
 botname = 'doorbot'
 
@@ -71,3 +74,24 @@ GREEN_PIN = 13
 DOOR_PIN = 4
 BEEP_PIN = 26
 
+# mqtt
+#
+#
+def getMacAddr(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', bytes(ifname, 'utf-8')[:15]))
+    return ''.join('%02x' % b for b in info[18:24])
+            
+
+mqtt_broker_address='auth'
+mqtt_broker_port=1883
+mqtt_ssl_ca_cert='/home/pi/ssl/ca.crt'
+mqtt_ssl_client_cert='/home/pi/ssl/client.crt'
+mqtt_ssl_client_key='/home/pi/ssl/client.key'
+mqtt_node_id=getMacAddr('eth0')
+mqtt_prefix='ratt/status/node/' + mqtt_node_id
+mqtt_listen_topic='ratt/control/broadcast/#'
+mqtt_acl_update_topic='ratt/control/broadcast/acl/update'
+
+# ACL update
+acl_update_script='/home/pi/doorbot/databases/auto_door_list.sh'
