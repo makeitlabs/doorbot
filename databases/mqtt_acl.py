@@ -3,39 +3,35 @@ import os
 import datetime
 import sys
 sys.path.insert(0, '../')
+import qsetup
 from qsetup import botlog
-
-broker_address='auth'
-broker_port=1883
-ssl_ca_cert='/home/pi/ssl/ca.crt'
-ssl_client_cert='/home/pi/ssl/client.crt'
-ssl_client_key='/home/pi/ssl/client.key'
-
-update_script='/home/pi/doorbot/databases/auto_door_list.sh'
 
 def do_update(message):
     now = datetime.datetime.now()
     botlog.info(message)
-    os.system(update_script)
+    os.system(qsetup.acl_update_script)
 
 def on_connect(client, userdata, flags, rc):
-    do_update("MQTT client connected, updating")
+    do_update("MQTT ACL updater connected, updating")
 
 def on_message(client, userdata, message):
-    if message.topic == 'ratt/control/broadcast/acl/update':
-        do_update("MQTT ACL update")
+    if message.topic == qsetup.mqtt_acl_update_topic:
+        do_update("MQTT ACL updater triggered, updating")
 
+
+botlog.info("MQTT ACL updater starting")
 
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
 
-client.tls_set(ca_certs=ssl_ca_cert, certfile=ssl_client_cert, keyfile=ssl_client_key)
-client.connect(broker_address, port=broker_port)
+client.tls_set(ca_certs=qsetup.mqtt_ssl_ca_cert, certfile=qsetup.mqtt_ssl_client_cert, keyfile=qsetup.mqtt_ssl_client_key)
+client.connect(qsetup.mqtt_broker_address, port=qsetup.mqtt_broker_port)
 
-client.subscribe('ratt/control/broadcast/#', 2)
+client.subscribe(qsetup.mqtt_listen_topic, 2)
 
 client.loop_forever()
 
-    
+botlog.info("MQTT ACL updater exiting")
+
 
