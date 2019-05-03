@@ -1,0 +1,15 @@
+[Unit]
+Description=Doorbot updater
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/doorbot/databases
+ExecStart=/usr/bin/python3 mqtt_acl.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,14 @@
+[Unit]
+Description=Doorbot backend
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/doorbot
+ExecStart=/usr/bin/python3 qdoor.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
