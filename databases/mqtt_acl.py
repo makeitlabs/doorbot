@@ -1,5 +1,9 @@
 import paho.mqtt.client as mqtt
 import os
+import datetime
+import sys
+sys.path.insert(0, '../')
+from qsetup import botlog
 
 broker_address='auth'
 broker_port=1883
@@ -9,15 +13,17 @@ ssl_client_key='/home/pi/ssl/client.key'
 
 update_script='/home/pi/doorbot/databases/auto_door_list.sh'
 
-def do_update():
+def do_update(message):
+    now = datetime.datetime.now()
+    botlog.info(message)
     os.system(update_script)
 
 def on_connect(client, userdata, flags, rc):
-    do_update()
+    do_update("MQTT client connected, updating")
 
 def on_message(client, userdata, message):
     if message.topic == 'ratt/control/broadcast/acl/update':
-        do_update()
+        do_update("MQTT ACL update")
 
 
 client = mqtt.Client()
