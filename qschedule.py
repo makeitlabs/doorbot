@@ -9,8 +9,10 @@ import calendar
 class Schedule():
     @staticmethod
     def factory(t):
-        if t == 'entry':
-            return EntrySchedule()
+        if t == 'Open':
+            return EntryScheduleOpen()
+        elif t == 'HobbyistRestricted':
+            return EntryScheduleHobbyistRestricted()
         assert 0, 'bad Schedule type %s' % t
 
     def __init__(self):
@@ -21,9 +23,24 @@ class Schedule():
     
     def scheduleDesc(self):
         pass
+
+
+class EntryScheduleOpen(Schedule):
+    def __init__(self):
+        pass
+
+    def isAllowed(self, plan):
+        return True
+
+    def scheduleDesc(self, t = None):
+        return 'All Members Allowed 24/7'
+
+if __name__ == '__main__':
+    s = Schedule.factory('entry')
+
     
         
-class EntrySchedule(Schedule):
+class EntryScheduleHobbyistRestricted(Schedule):
     def __init__(self):
         pass
 
