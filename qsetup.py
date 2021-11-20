@@ -49,7 +49,7 @@ botlog.addHandler(syslog)
 #READER_TYPE = 'hid'
 
 READER_TYPE = 'serial'
-READER_DEVICE = '/dev/ttyS0'
+READER_DEVICE = '/dev/serial0'
 READER_BAUD_RATE = 9600
 
 #READER_TYPE = 'tormach'
@@ -64,7 +64,8 @@ AUTHENTICATE_JSON_FILE = 'databases/rfid/acl.json'
 AUTHENTICATE_FILE = AUTHENTICATE_JSON_FILE
 
 # qschedule.py
-schedule = Schedule.factory('entry')
+# specify 'Open' for 24/7 access or 'HobbyistRestricted' for hobbyists on weekend/nights only
+schedule = Schedule.factory('Open')
 
 # door_hw.py
 #
