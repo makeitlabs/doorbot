@@ -35,6 +35,9 @@ class SocketServerThread(QThread):
         self.readerThread = readerThread;
         self.connected = False
 
+        # this is only used to get the ACL time
+        self.aclinfo = Authenticate.factory(qsetup.AUTHENTICATE_TYPE, qsetup.AUTHENTICATE_FILE)
+
         self.server = QLocalServer()
         QLocalServer.removeServer('doorbotgui')
 
@@ -51,6 +54,7 @@ class SocketServerThread(QThread):
         if self.connected:
             self.sendCurrentTime()
             self.sendCurrentSchedule()
+            self.sendACLTime()
 
     def sendPacket(self, pkt):
         if self.connected:
@@ -78,6 +82,10 @@ class SocketServerThread(QThread):
         pkt = {'cmd':'schedule', 'description':qsetup.schedule.scheduleDesc()}
         self.sendPacket(pkt)
 
+    def sendACLTime(self):
+        pkt = {'cmd':'acltime', 'time':self.aclinfo.get_raw_file_time()}
+        self.sendPacket(pkt)
+        
     def onStatusChange(self, status):
         self.sendReadStatus()
 
@@ -98,6 +106,7 @@ class SocketServerThread(QThread):
 
         self.sendReadStatus()
         self.sendCurrentSchedule()
+        self.sendACLTime()
 
     def onDisconnect(self):
         self.connected = False

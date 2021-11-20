@@ -95,6 +95,7 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
         self.dispatchTable = {
             'time' : self.respTime,
             'schedule' : self.respSchedule,
+            'acltime' : self.respACLTime,
             'bulletin' : self.respBulletin,
             'readstatus' : self.respReadStatus,
             'access' : self.respAccess
@@ -163,6 +164,10 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
         desc = pkt['description']
         self.labelSchedule.setText(desc)
 
+    def respACLTime(self, pkt):
+        t = pkt['time']
+        self.labelHealth.setText('Database updated ' + t);
+        
     def respBulletin(self, pkt):
         source = pkt['source']
 

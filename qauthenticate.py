@@ -7,6 +7,7 @@ import json
 import time
 from qsetup import botlog
 
+
 # base class
 class Authenticate():
     @staticmethod
@@ -27,7 +28,21 @@ class Authenticate():
 
     def get_file_time(self):
         return time.ctime(self.file_time)
-        
+    
+    def get_raw_file_time(self):
+        try:
+            fd = os.open(self.filename, os.O_RDONLY)
+            fi = os.fstat(fd)
+            os.close(fd)
+            return time.ctime(fi.st_mtime)
+                
+        except OSError as e:
+            botlog.critical( "get_file_time exception on file %s: %s" % (self.filename, e.strerror))
+        except:
+            botlog.critical( "get_file_time exception on file %s: %s" % (self.filename, sys.exc_info()))
+
+        return 'get_file_time err'
+
     def load(self):
         pass
 
