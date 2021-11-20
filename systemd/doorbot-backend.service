@@ -8,6 +8,8 @@ User=pi
 WorkingDirectory=/home/pi/doorbot
 ExecStartPre=/bin/sleep 15 
 ExecStart=/usr/bin/python3 qdoor.py
+Restart=always
+RestartSec=1
 
 [Install]
 WantedBy=multi-user.target
