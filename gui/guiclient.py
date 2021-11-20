@@ -4,11 +4,11 @@ from subprocess import check_output
 import json
 from datetime import datetime, date, time
 
-from PyQt4 import QtGui
-#from PyQt5.QtWebKit import QWebView
-from PyQt4.QtCore import Qt, QUrl, QTimer
-from PyQt4.QtGui import QApplication, QWidget, QDialog, QCursor, QPalette, QDesktopWidget
-from PyQt4.QtNetwork import QLocalSocket
+from PyQt5.QtWidgets import *
+from PyQt5 import QtCore, QtGui
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtNetwork import QLocalSocket
 
 # to build ui and resources file with PyQt4:
 # pyuic4 bot.ui -o ui_bot.py
@@ -35,17 +35,17 @@ class AccessDialog(QDialog, Ui_AccessDialog):
         self.setWindowFlags(Qt.FramelessWindowHint)
 
         fg = self.frameGeometry()
-        cp = QtGui.QDesktopWidget().availableGeometry().center()
+        cp = QDesktopWidget().availableGeometry().center()
         fg.moveCenter(cp)
         self.move(fg.topLeft())
-        
+
     def memberAccess(self, result, member):
         if result == 'allowed':
             if member['warning'] == '':
                 self.frameLeftBar.setStyleSheet('background-color: rgb(26,185,18);')
             else:
                 self.frameLeftBar.setStyleSheet('background-color: rgb(255,226,58);')
-                
+
         elif result == 'denied':
             self.frameLeftBar.setStyleSheet('background-color: rgb(185,26,18);')
 
@@ -77,13 +77,13 @@ class AccessDialog(QDialog, Ui_AccessDialog):
         else:
             self.labelLastVisit.setVisible(False)
             self.labelLastVisit.setText('')
-                                        
+
         self.timer.start(5000)
         self.open()
 
 
 class DoorbotGUI(QWidget, Ui_BotGUI):
-    
+
     def __init__(self):
         QWidget.__init__(self)
 
@@ -91,7 +91,7 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
 
         self.accessDialog = AccessDialog(self)
         self.accessDialog.hide()
-        
+
         self.dispatchTable = {
             'time' : self.respTime,
             'schedule' : self.respSchedule,
@@ -99,7 +99,7 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
             'readstatus' : self.respReadStatus,
             'access' : self.respAccess
         }
-        
+
         self.timer = QTimer()
         self.timer.timeout.connect(self.tick)
         self.timer.start(1000)
@@ -115,7 +115,7 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
         self.socket.error.connect(self.onError)
         self.socket.connectToServer('doorbotgui')
 
-        
+
         self.setCursor(Qt.BlankCursor)
         self.showFullScreen()
         self.show()
@@ -127,10 +127,10 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
         self.reconnectTimer.stop()
         self.labelHealth.setText('Reconnecting to backend.')
         self.socket.connectToServer('doorbotgui')
-        
+
     def onConnect(self):
         self.labelHealth.setText('Connected to backend.')
-        
+
     def onDisconnect(self):
         self.labelHealth.setText('Disconnected from backend.')
         self.reconnectTimer.start(2000)
@@ -138,7 +138,7 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
     def onError(self, err):
         self.labelHealth.setText('Backend connect error ' + self.socket.errorString() + '.' )
         self.reconnectTimer.start(2000)
-        
+
     def onReadyRead(self):
         while self.socket.canReadLine():
             rx = self.socket.readLine(2048).decode('utf-8')
@@ -149,7 +149,7 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
                 cmd = pkt['cmd']
 
                 if cmd in self.dispatchTable:
-                    self.dispatchTable[cmd](pkt)                    
+                    self.dispatchTable[cmd](pkt)
             except ValueError:
                 print('could not decode json')
 
@@ -188,23 +188,22 @@ class DoorbotGUI(QWidget, Ui_BotGUI):
             statusText = 'An unexpected error has occurred.  Contact board@makeitlabs.com.'
         else:
             statusText = 'Unexpected status: %s' % status
-        
+
         self.labelReadStatus.setText(statusText)
-        
-        
+
+
     def respAccess(self, pkt):
         result = pkt['result']
         member = pkt['member']
 
         self.accessDialog.memberAccess(result, member)
-        
+
 def main():
     signal.signal(signal.SIGINT, sigint_handler)
-    
+
     app = QApplication(sys.argv)
     ex = DoorbotGUI()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
     main()
-                                                                                            
