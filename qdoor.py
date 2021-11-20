@@ -1,5 +1,5 @@
-from PyQt4.QtCore import QThread, QCoreApplication, QTimer, QSocketNotifier, pyqtSignal, pyqtSlot
-from PyQt4.QtNetwork import QLocalServer
+from PyQt5.QtCore import QThread, QCoreApplication, QTimer, QSocketNotifier, pyqtSignal, pyqtSlot, QByteArray
+from PyQt5.QtNetwork import QLocalServer
 
 from enum import Enum, unique
 import signal
@@ -16,7 +16,7 @@ from qrfid import rfid_reader
 
 def sigint_handler(*args):
     QCoreApplication.quit()
-        
+
 @unique
 class Status(Enum):
     INIT = 0
@@ -35,17 +35,15 @@ class SocketServerThread(QThread):
         self.readerThread = readerThread;
         self.connected = False
 
-        self.timer = QTimer()
-        
         self.server = QLocalServer()
         QLocalServer.removeServer('doorbotgui')
-        
+
         if not self.server.listen('doorbotgui'):
             print(self.server.errorString())
             return
 
         botlog.info('SocketServerThread Initialized.')
-        
+
     def __del__(self):
         botlog.info('SocketServer Thread Deletion')
 
@@ -53,11 +51,13 @@ class SocketServerThread(QThread):
         if self.connected:
             self.sendCurrentTime()
             self.sendCurrentSchedule()
-        
+
     def sendPacket(self, pkt):
         if self.connected:
+            p = json.dumps(pkt) + '\n'
+            bytes = QByteArray(p.encode())
             try:
-                self.client.write(json.dumps(pkt) + '\n')
+                self.client.write(bytes)
                 self.client.flush()
             except:
                 print('could not sendPacket')
@@ -77,13 +77,13 @@ class SocketServerThread(QThread):
     def sendCurrentSchedule(self):
         pkt = {'cmd':'schedule', 'description':qsetup.schedule.scheduleDesc()}
         self.sendPacket(pkt)
-        
+
     def onStatusChange(self, status):
         self.sendReadStatus()
 
     def onAccess(self, allowed, memberData):
         self.sendAccess(allowed, memberData)
-        
+
     def onConnect(self):
         botlog.info('New connection to SocketServer')
 
@@ -95,7 +95,7 @@ class SocketServerThread(QThread):
             botlog.error('exception creating client')
 
         self.connected = True
-            
+
         self.sendReadStatus()
         self.sendCurrentSchedule()
 
@@ -103,32 +103,36 @@ class SocketServerThread(QThread):
         self.connected = False
         self.client.deleteLater()
         botlog.info('SocketServer disconnected')
-        
+
     def run(self):
         botlog.info('SocketServer Thread Running')
 
         if self.readerThread:
             self.readerThread.signalStatusChange.connect(self.onStatusChange)
             self.readerThread.signalAccess.connect(self.onAccess)
-        
+
         self.server.newConnection.connect(self.onConnect)
 
+        self.timer = QTimer()
         self.timer.timeout.connect(self.onTimer)
         self.timer.start(1000)
-        
+
         self.exec()
         botlog.info('SocketServerThread Stopped.')
 
-        
 class RFIDReaderThread(QThread):
     signalStatusChange = pyqtSignal(Status)
     signalAccess = pyqtSignal('QString', dict)
-    
+
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
 
+        self.latchTimer = QTimer()
+        self.delayTimer = QTimer()
+
+
         self.status = Status.INIT
-        
+
         self.hw = DoorHW(red_pin=qsetup.RED_PIN, green_pin=qsetup.GREEN_PIN, door_pin=qsetup.DOOR_PIN, beep_pin=qsetup.BEEP_PIN)
 
         self.reader = rfid_reader.factory(qsetup.READER_TYPE)
@@ -138,7 +142,11 @@ class RFIDReaderThread(QThread):
 
         botlog.info('authentication file date %s' % self.authenticate.get_file_time())
         botlog.info('RFIDReaderThread Initialized.')
-        
+
+        self.notifier = QSocketNotifier(self.reader.fileno(), QSocketNotifier.Read)
+
+
+
     def __del__(self):
         botlog.info('RFIDReaderThread Thread Deletion.')
         self.wait()
@@ -160,11 +168,11 @@ class RFIDReaderThread(QThread):
             self.hw.green(on=True)
             self.hw.red(on=False)
             self.hw.beep(on=False)
-        elif self.status == Status.ERROR:
+        elif self.status == Status.ERROR or self.status == Status.UNKNOWN:
             self.hw.green(on=False)
             self.hw.red(on=self.blinkPhase)
             self.hw.beep(on=False)
-        
+
     def blink(self):
         self.updateLEDs()
         self.blinkPhase = not self.blinkPhase
@@ -174,7 +182,7 @@ class RFIDReaderThread(QThread):
         self.status = s
         self.signalStatusChange.emit(s)
         self.updateLEDs()
-        
+
     def unlatch(self):
         self.hw.latch(open=False)
         self.setStatus(Status.READY)
@@ -186,12 +194,12 @@ class RFIDReaderThread(QThread):
         self.reader.flush()
         self.notifier.setEnabled(True)
 
-        
+
     def onData(self):
         rfid_str = self.reader.get_card()
         if not rfid_str:
             return
-        
+
         botlog.debug( 'RFID string >>%s<<' % rfid_str)
 
         # Several things can happen:
@@ -205,7 +213,7 @@ class RFIDReaderThread(QThread):
         try :
             self.setStatus(Status.READING)
             rfid = int(rfid_str)
-            
+
             access = self.authenticate.get_access(rfid)
 
             allowed = 'false'
@@ -215,11 +223,11 @@ class RFIDReaderThread(QThread):
                 allowed = access['allowed']
                 member = access['member']
                 plan = access['plan']
-                
+
                 print(allowed)
                 print(access)
                 print(plan)
-                
+
                 if 'allowed' in allowed :
                     if qsetup.schedule.isAllowed(plan):
                         # 3a. open the door
@@ -228,7 +236,7 @@ class RFIDReaderThread(QThread):
 
                         self.setStatus(Status.ALLOWED)
                         self.setStatus(Status.LATCHED)
-                    
+
                         self.hw.latch(open=True)
                         self.notifier.setEnabled(False)
                         self.latchTimer.start(4000)
@@ -242,10 +250,10 @@ class RFIDReaderThread(QThread):
                             member['warning'] = qsetup.schedule.scheduleDesc()
                         else:
                             member['warning'] += '\n%s' % qsetup.schedule.scheduleDesc()
-                            
+
                         self.setStatus(Status.DENIED)
                         self.notifier.setEnabled(False)
-                        self.delayTimer.start(3000)
+                        self.delayTimer.start(2000)
                 else :
                     #2
                     # access failed.  blink the red
@@ -253,7 +261,7 @@ class RFIDReaderThread(QThread):
                     botlog.warning('%s DENIED' % member)
                     self.setStatus(Status.DENIED)
                     self.notifier.setEnabled(False)
-                    self.delayTimer.start(3000)
+                    self.delayTimer.start(2000)
 
 
             else :
@@ -264,7 +272,7 @@ class RFIDReaderThread(QThread):
                 self.signalAccess.emit('denied', access)
 
                 self.notifier.setEnabled(False)
-                self.delayTimer.start(3000)
+                self.delayTimer.start(2000)
 
             self.signalAccess.emit(allowed, access)
 
@@ -284,40 +292,38 @@ class RFIDReaderThread(QThread):
     def run(self):
         botlog.info('RFIDReaderThread Running.')
 
-        self.blinkPhase = False
-        self.blinkTimer = QTimer()
-        self.blinkTimer.timeout.connect(self.blink)        
+        self.notifier.activated.connect(self.onData)
 
-        self.latchTimer = QTimer()
         self.latchTimer.timeout.connect(self.unlatch)
         self.latchTimer.setSingleShot(True)
 
-        self.delayTimer = QTimer()
         self.delayTimer.timeout.connect(self.undelay)
         self.delayTimer.setSingleShot(True)
-        
-        self.notifier = QSocketNotifier(self.reader.fileno(), QSocketNotifier.Read)
-        self.notifier.activated.connect(self.onData)
-        
+
+
+        self.blinkTimer = QTimer()
+        self.blinkPhase = False
+        self.blinkTimer.timeout.connect(self.blink)
+
         self.blinkTimer.start(250)
         self.notifier.setEnabled(True)
 
         self.setStatus(Status.READY)
         self.exec()
-        
+
         botlog.info('RFIDReaderThread Stopped.')
 
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, sigint_handler)
-    
+
     app = QCoreApplication(sys.argv)
-    
+
     rfid = RFIDReaderThread()
     server = SocketServerThread(readerThread=rfid)
 
-    
+
     rfid.start()
     server.start()
-    
+
     app.exec()
