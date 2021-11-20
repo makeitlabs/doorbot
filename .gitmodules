@@ -1,0 +1,3 @@
+[submodule "avr/arduino/doorbot_wiegand"]
+	path = avr/arduino/doorbot_wiegand
+	url = https://github.com/makeitlabs/doorbot_wiegand.git
