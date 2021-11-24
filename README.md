@@ -5,4 +5,3 @@ Doorbot can run 'headless' with no display (typically using an LED for user feed
 
 Doorbot exists alongside RATT (https://github.com/makeitlabs/ratt/), which is a lower-cost RFID access control endpoint implemented on an entirely different platform.  Both Doorbot and RATT use the authbackend database (https://github.com/makeitlabs/authbackend) to obtain their access control lists, allowing for centralized access control.
 
-<img src="photos/doorbot1.jpg" width="360"> <img src="photos/doorbot2.jpg" width="360"> <img src="photos/doorbot3.jpg" width="360">
