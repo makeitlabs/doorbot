@@ -75,7 +75,10 @@ class EntryScheduleHobbyistRestricted(Schedule):
         return weeknightStart - t
 
     def weeknightTimeRemaining(self, t):
-        weeknightEnd = t + relativedelta(hour=6, minute=0, second=0, microseconds=0, days=+1)
+        if t.hour >=18:
+            weeknightEnd = t + relativedelta(hour=6, minute=0, second=0, microseconds=0, days=+1)
+        else:
+            weeknightEnd = t + relativedelta(hour=6, minute=0, second=0, microseconds=0, days=0)
         return weeknightEnd - t
         
     def isWeekend(self, t):
